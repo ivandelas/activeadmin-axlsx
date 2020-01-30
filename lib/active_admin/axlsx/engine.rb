@@ -9,20 +9,13 @@ module ActiveAdmin
           Mime::Type.register xlsx, :xlsx
         end
 
-        ActiveAdmin::ResourceDSL include ActiveAdmin::Axlsx::DSL
-        ActiveAdmin::Resource include ActiveAdmin::Axlsx::ResourceExtension
         ActiveAdmin::Views::PaginatedCollection.add_format :xlsx
-        
-        ActiveAdmin::ResourceController prepend ActiveAdmin::Axlsx::ResourceControllerExtension
 
-        # ActiveAdmin::Views::PaginatedCollection.add_format :xlsx
-
-        # ActiveAdmin::ResourceDSL.send :include, ActiveAdmin::Axlsx::DSL
-        # ActiveAdmin::Resource.send :include, ActiveAdmin::Axlsx::ResourceExtension
-        # ActiveAdmin::ResourceController.send(
-          # :prepend,
-          # ActiveAdmin::Axlsx::ResourceControllerExtension
-        # )
+        ActiveAdmin::ResourceDSL.send :include, ActiveAdmin::Axlsx::DSL
+        ActiveAdmin::Resource.send :include, ActiveAdmin::Axlsx::ResourceExtension
+        ActiveAdmin::ResourceController.send(
+          :prepend, ActiveAdmin::Axlsx::ResourceControllerExtension
+        )
       end
     end
   end
