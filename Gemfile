@@ -1,17 +1,18 @@
 source 'https://rubygems.org'
 
 gem 'axlsx'
-# gemspec
+
+gemspec
 
 group :development, :test do
   gem 'sqlite3'
   gem 'yard'
-  # gem "sprockets"
+  gem "sprockets"
   gem 'rails-i18n'
 end
 
 group :test do
-  # gem 'inherited_resources'
+  gem 'inherited_resources'
   gem 'sass-rails'
   gem 'rspec-mocks'
   gem 'rspec-rails'
