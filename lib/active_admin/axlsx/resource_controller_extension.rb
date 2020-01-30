@@ -1,35 +1,43 @@
 module ActiveAdmin
   module Axlsx
     module ResourceControllerExtension
-#       def self.included(base)
-#         base.send :alias_method_chain, :per_page, :xlsx
-#         base.send :alias_method_chain, :index, :xlsx
-#         base.send :respond_to, :xlsx
-#       end
+      def self.prepended(base)
+        base.send :respond_to, :xlsx, only: :index
+      end
 
-#       # patching the index method to allow the xlsx format.
-#       def index_with_xlsx(options={}, &block)
-#         index_without_xlsx(options) do |format|
-#            format.xlsx do
-#             xlsx = active_admin_config.xlsx_builder.serialize(collection)
-#             send_data xlsx, :filename => "#{xlsx_filename}", :type => Mime::Type.lookup_by_extension(:xlsx)
-#           end
-#         end
-#       end
+      def index
+        super do |format|
+          format.xlsx do
+            xlsx = active_admin_config.xlsx_builder.serialize(xlsx_collection, view_context)
+            send_data(xlsx, filename: xlsx_filename,
+                            type: Mime::Type.lookup_by_extension(:xlsx))
+          end
 
-#       # patching per_page to use the CSV record max for pagination when the format is xlsx
-#       def per_page_with_xlsx
-#           if request.format ==  Mime::Type.lookup_by_extension(:xlsx)
-#             return max_csv_records
-#           end
-#           per_page_without_xlsx
-#       end
+          yield(format) if block_given?
+        end
+      end
 
-#       # Returns a filename for the xlsx file using the collection_name
-#       # and current date such as 'my-articles-2011-06-24.xlsx'.
-#       def xlsx_filename
-#         "#{resource_collection_name.to_s.gsub('_', '-')}-#{Time.now.strftime("%Y-%m-%d")}.xlsx"
-#       end
+      def rescue_active_admin_access_denied(exception)
+        if request.format == Mime::Type.lookup_by_extension(:xlsx)
+          respond_to do |format|
+            format.xlsx do
+              flash[:error] = "#{exception.message} Review download_links in initializers/active_admin.rb"
+              redirect_backwards_or_to_root
+            end
+          end
+        else
+          super(exception)
+        end
+      end
+
+      def xlsx_filename
+        timestamp = Time.now.strftime('%Y-%m-%d')
+        "#{resource_collection_name.to_s.tr('_', '-')}-#{timestamp}.xlsx"
+      end
+
+      def xlsx_collection
+        find_collection except: :pagination
+      end
     end
   end
 end
