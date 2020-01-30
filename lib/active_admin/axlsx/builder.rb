@@ -2,49 +2,19 @@ require 'axlsx'
 
 module ActiveAdmin
   module Axlsx
-    # Builder for xlsx data using the axlsx gem.
     class Builder
-
       include MethodOrProcHelper
 
-      # @param resource_class The resource this builder generate column information for.
-      # @param [Hash] options the options for this builder
-      # @option [Hash] :header_style - a hash of style properties to apply
-      #   to the header row. Any properties specified will be merged with the default
-      #   header styles. @see Axlsx::Styles#add_style
-      # @option [Array] :i18n_scope - the I18n scope to use when looking
-      #   up localized column headers.
-      # @param [Block] Any block given will evaluated against this instance of Builder.
-      #   That means you can call any method on the builder from withing that block.
-      # @example
-      #   ActiveAdmin::Axlsx:Builder.new(Post, i18n: [:axlsx]) do
-      #     delete_columns :id, :created_at, :updated_at
-      #     column(:author_name) { |post| post.author.name }
-      #     column(:
-      #     after_filter { |sheet|
-      #       sheet.add_row []
-      #
-      #       sheet.add_row ['Author Name', 'Number of Posts'], :style => self.header_style
-      #       data = labels = []
-      #       User.all.each do |user|
-      #         data << [user.posts.size]
-      #         labels << user.name
-      #         sheet.add_row [labels.last, data.last]
-      #       end
-      #       chart_color =  %w(88F700, 279CAC, B2A200, FD66A3, F20062, C8BA2B, 67E6F8, DFFDB9, FFE800, B6F0F8)
-      #       sheet.add_chart(Axlsx::Pie3DChart, :title => "post by author") do |chart|
-      #         chart.add_series :data => data, :labels => labels, :colors => chart_color
-      #         chart.start_at 2, sheet.rows.size
-      #         chart.end_at 3, sheet.rows.size + 20
-      #       end
-      #     }
-      #   end
-      #   @see ActiveAdmin::Axlsx::DSL
       def initialize(resource_class, options={}, &block)
         @skip_header = false
         @columns = resource_columns(resource_class)
         parse_options options
         instance_eval &block if block_given?
+       
+        # @resource_class = resource_class
+        # @columns = []
+        # @columns_loaded = false
+        # @column_updates = []
       end
 
       # The default header style
@@ -68,10 +38,11 @@ module ActiveAdmin
       end
 
       # The scope to use when looking up column names to generate the report header
+      # attr_accessor :i18n_scope
       def i18n_scope
         @i18n_scope ||= nil
       end
-
+      
       # This is the I18n scope that will be used when looking up your
       # colum names in the current I18n locale.
       # If you set it to [:active_admin, :resources, :posts] the 
@@ -106,6 +77,22 @@ module ActiveAdmin
         @columns = []
       end
 
+      # def columns
+        # execute each update from @column_updates
+        # set @columns_loaded = true
+        # load_columns unless @columns_loaded
+        # @columns
+      # end
+
+      # attr_reader :collection
+
+      # def clear_columns
+        # @columns_loaded = true
+        # @column_updates = []
+
+        # @columns = []
+      # end
+
       # Clears the default columns array so you can whitelist only the columns you
       # want to export
       def whitelist
@@ -128,13 +115,46 @@ module ActiveAdmin
 
       # Serializes the collection provided
       # @return [Axlsx::Package]
-      def serialize(collection)
+      def serialize(collection) #, view_context = nil)
         @collection = collection
         apply_filter @before_filter
+        # @view_context = view_context
+        # load_columns unless @columns_loaded
         export_collection(collection)
         apply_filter @after_filter
         to_stream
       end
+
+      # alias whitelist clear_columns
+
+      # def column(name, &block)
+        # if @columns_loaded
+          # columns << Column.new(name, block)
+        # else
+          # column_lambda = lambda do
+            # column(name, &block)
+          # end
+          # @column_updates << column_lambda
+        # end
+      # end
+
+      # def delete_columns(*column_names)
+        # if @columns_loaded
+          # columns.delete_if { |column| column_names.include?(column.name) }
+        # else
+          # delete_lambda = lambda do
+            # delete_columns(*column_names)
+          # end
+          # @column_updates << delete_lambda
+        # end
+      # end
+
+      # def only_columns(*column_names)
+        # clear_columns
+        # column_names.each do |column_name|
+          # column column_name
+        # end
+      # end
 
       protected
 
@@ -154,6 +174,15 @@ module ActiveAdmin
       end
 
       private
+
+      #def load_columns
+        # return if @columns_loaded
+        # @columns = resource_columns(@resource_class)
+        # @columns_loaded = true
+        # @column_updates.each(&:call)
+        # @column_updates = []
+        # columns
+      # end
 
       def to_stream
         stream = package.to_stream.read
@@ -179,14 +208,14 @@ module ActiveAdmin
       end
 
       def header_data_for(collection)
-        resource = collection.first
+        resource = collection.first # || @resource_class.new
         columns.map do |column|
           column.localized_name(i18n_scope) if in_scope(resource, column)
         end.compact
       end
 
       def apply_filter(filter)
-        filter.call(sheet) if filter
+        filter&.call(sheet) if filter
       end
 
       def parse_options(options)
@@ -203,6 +232,7 @@ module ActiveAdmin
 
       def in_scope(resource, column)
         return true unless column.name.is_a?(Symbol)
+
         resource.respond_to?(column.name)
       end
 
@@ -211,7 +241,7 @@ module ActiveAdmin
       end
 
       def package
-        @package ||= ::Axlsx::Package.new(:use_shared_strings => true)
+        @package ||= ::Axlsx::Package.new(use_shared_strings: true)
       end
 
       def header_style_id
@@ -223,6 +253,19 @@ module ActiveAdmin
           Column.new(column.name.to_sym)
         end
       end
+      
+    
+      #def method_missing(method_name, *arguments)
+        #if @view_context.respond_to? method_name
+         #  @view_context.send method_name, *arguments
+        # else
+          # super
+        # end
+      # end
+
+      # def respond_to_missing?(method_name, include_private = false)
+        # @view_context.respond_to?(method_name) || super
+      # end
     end
   end
 end
