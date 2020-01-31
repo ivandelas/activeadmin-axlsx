@@ -4,9 +4,9 @@ module ActiveAdmin
       engine_name 'active_admin_axlsx'
 
       initializer 'active_admin.axlsx', group: :all do
-        xlsx = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        xls = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         if Mime::Type.lookup_by_extension(:xlsx).nil?
-          Mime::Type.register xlsx, :xlsx
+          Mime::Type.register xls, :xlsx
         end
 
         ActiveAdmin::Views::PaginatedCollection.add_format :xlsx

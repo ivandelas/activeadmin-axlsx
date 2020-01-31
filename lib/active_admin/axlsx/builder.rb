@@ -10,7 +10,7 @@ module ActiveAdmin
         @columns = resource_columns(resource_class)
         parse_options options
         instance_eval &block if block_given?
-       
+
         # @resource_class = resource_class
         # @columns = []
         # @columns_loaded = false
@@ -38,11 +38,12 @@ module ActiveAdmin
       end
 
       # The scope to use when looking up column names to generate the report header
-      # attr_accessor :i18n_scope
+      attr_accessor :i18n_scope
+
       def i18n_scope
         @i18n_scope ||= nil
       end
-      
+
       # This is the I18n scope that will be used when looking up your
       # colum names in the current I18n locale.
       # If you set it to [:active_admin, :resources, :posts] the 
@@ -115,10 +116,10 @@ module ActiveAdmin
 
       # Serializes the collection provided
       # @return [Axlsx::Package]
-      def serialize(collection) #, view_context = nil)
+      def serialize(collection, view_context = nil)
         @collection = collection
         apply_filter @before_filter
-        # @view_context = view_context
+        @view_context = view_context
         # load_columns unless @columns_loaded
         export_collection(collection)
         apply_filter @after_filter
@@ -220,7 +221,7 @@ module ActiveAdmin
 
       def parse_options(options)
         options.each do |key, value|
-          self.send("#{key}=", value) if self.respond_to?("#{key}=") && value != nil
+          send("#{key}=", value) if respond_to?("#{key}=") && value != nil
         end
       end
 
@@ -253,19 +254,18 @@ module ActiveAdmin
           Column.new(column.name.to_sym)
         end
       end
-      
-    
-      #def method_missing(method_name, *arguments)
-        #if @view_context.respond_to? method_name
-         #  @view_context.send method_name, *arguments
-        # else
-          # super
-        # end
-      # end
 
-      # def respond_to_missing?(method_name, include_private = false)
-        # @view_context.respond_to?(method_name) || super
-      # end
+      def method_missing(method_name, *arguments)
+        if @view_context.respond_to? method_name
+          @view_context.send method_name, *arguments
+        else
+          super
+        end
+      end
+
+      def respond_to_missing?(method_name, include_private = false)
+        @view_context.respond_to?(method_name) || super
+      end
     end
   end
 end

@@ -5,7 +5,9 @@ module ActiveAdmin
                :before_filter,
                :column,
                :ignore_columns,
-               # TODO check + options -> :delete_columns, :only_columns, :header_format, :white_list vs. :whitelist
+               :delete_columns,
+               :only_columns,
+               :header_format,
                :header_style,
                :i18n_scope,
                :skip_header,
