@@ -8,8 +8,7 @@ module ActiveAdmin
       def index
         super do |format|
           format.xlsx do
-            xlsx = active_admin_config.xlsx_builder.serialize(xlsx_collection,
-                                                              view_context)
+            xlsx = active_admin_config.xlsx_builder.serialize(xlsx_collection)
             send_data(xlsx, filename: xlsx_filename,
                             type: Mime::Type.lookup_by_extension(:xlsx))
           end
