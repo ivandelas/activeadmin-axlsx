@@ -2,7 +2,7 @@ PATH
   remote: .
   specs:
     activeadmin-axlsx (3.2.0)
-      activeadmin (> 1.0.0.pre4, < 2)
+      activeadmin (>= 0.6.6)
       axlsx (>= 2.1.0.pre)
 
 GEM
@@ -249,4 +249,4 @@ DEPENDENCIES
   yard
 
 BUNDLED WITH
-   2.0.2
+   2.1.4
