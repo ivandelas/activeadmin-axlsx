@@ -253,18 +253,6 @@ module ActiveAdmin
           Column.new(column.name.to_sym)
         end
       end
-
-      def method_missing(method_name, *arguments)
-        if @view_context.respond_to? method_name
-          @view_context.send method_name, *arguments
-        else
-          super
-        end
-      end
-
-      def respond_to_missing?(method_name, include_private = false)
-        @view_context.respond_to?(method_name) || super
-      end
     end
   end
 end
