@@ -94,7 +94,7 @@ module ActiveAdmin
       end
 
       def ensure_column_is_date_type(ts, index)
-        return false if index.zero?
+        return false if index == 0
 
         ts.compact!
         ts.any? { |t| t.class == DateTime } ||
@@ -103,7 +103,7 @@ module ActiveAdmin
           ts.any? { |t| t.class == Date } ||
           (ts.any? { |t| t.class == String } &&
            ts.any? do |t|
-             return false if t.zero?
+             return false if t == 0
              return false if ['EmployerUser', 'AdminUser', 'User', 'Employer',
                               'FlexHub::Coach', 'Coach',
                               'FlexHub::Employee'].include? t&.class&.name
