@@ -7,7 +7,9 @@ module ActiveAdmin
 
       def initialize(resource_class, options={}, &block)
         @skip_header = false
-        @columns = resource_columns(resource_class)
+        @columns = nil
+        @resource_class = resource_class
+        # @columns = resource_columns(resource_class)
         parse_options options
         instance_eval &block if block_given?
 
@@ -20,7 +22,9 @@ module ActiveAdmin
       # The default header style
       # @return [Hash]
       def header_style
-        @header_style ||= { :bg_color => '00', :fg_color => 'FF', :sz => 12, :alignment => { :horizontal => :center } }
+        @header_style ||= { :bg_color => 'b5b8b7', :fg_color => '00', :sz => 10,
+                            :b => true, :font_name => 'Helvetica Neue',
+                            :alignment => { :horizontal => :left, :vertical => :center } }
       end
 
       # This has can be used to override the default header style for your
@@ -38,7 +42,7 @@ module ActiveAdmin
       end
 
       # The scope to use when looking up column names to generate the report header
-      attr_accessor :i18n_scope
+      # attr_accessor :i18n_scope
 
       def i18n_scope
         @i18n_scope ||= nil
@@ -60,12 +64,12 @@ module ActiveAdmin
       end
 
       # the stored block that will be executed before your report is generated.
-      def before_filter(&block)
-        @before_filter = block
-      end
+      # def before_filter(&block)
+      #   @before_filter = block
+      # end
 
       # The columns this builder will be serializing
-      attr_reader :columns
+      # attr_reader :columns
 
       # The collection we are serializing.
       # @note This is only available after serialize has been called,
@@ -78,21 +82,36 @@ module ActiveAdmin
         @columns = []
       end
 
-      # def columns
-        # execute each update from @column_updates
-        # set @columns_loaded = true
-        # load_columns unless @columns_loaded
-        # @columns
-      # end
+      def datetime_cells
+        @timestamp = []
+        columns.each_with_index do |column, index|
+          ts = collection.map do |resource|
+            call_method_or_proc_on resource, column.data
+          end
+          @timestamp << index if ensure_column_is_date_type(ts, index)
+        end
+        @timestamp
+      end
 
-      # attr_reader :collection
+      def ensure_column_is_date_type(ts, index)
+        return false if index.zero?
 
-      # def clear_columns
-        # @columns_loaded = true
-        # @column_updates = []
+        ts.compact!
+        ts.any? { |t| t.class == DateTime } ||
+          ts.any? { |t| t.class == Time } ||
+          ts.any? { |t| t.respond_to?(:strftime) } ||
+          ts.any? { |t| t.class == Date } ||
+          (ts.any? { |t| t.class == String } &&
+           ts.any? do |t|
+             return false if t.zero?
+             return false if ['EmployerUser', 'AdminUser', 'User', 'Employer',
+                              'FlexHub::Coach', 'Coach',
+                              'FlexHub::Employee'].include? t&.class&.name
 
-        # @columns = []
-      # end
+             t.match(/\d{4}-\d{2}-\d{2}/)
+           end
+          )
+      end
 
       # Clears the default columns array so you can whitelist only the columns you
       # want to export
@@ -104,8 +123,14 @@ module ActiveAdmin
       # @param [Symbol] name The name of the column.
       # @param [Proc] block A block of code that is executed on the resource
       #                     when generating row data for this column.
+
       def column(name, &block)
+        @columns = [] if @columns.nil?
         @columns << Column.new(name, block)
+      end
+
+      def columns
+        @columns ||= resource_columns(@resource_class)
       end
 
       # removes columns by name
@@ -116,53 +141,20 @@ module ActiveAdmin
 
       # Serializes the collection provided
       # @return [Axlsx::Package]
-      def serialize(collection, view_context = nil)
+      def serialize(collection)
         @collection = collection
         apply_filter @before_filter
-        @view_context = view_context
-        # load_columns unless @columns_loaded
         export_collection(collection)
-        apply_filter @after_filter
+        # apply_filter @after_filter
         to_stream
       end
-
-      # alias whitelist clear_columns
-
-      # def column(name, &block)
-        # if @columns_loaded
-          # columns << Column.new(name, block)
-        # else
-          # column_lambda = lambda do
-            # column(name, &block)
-          # end
-          # @column_updates << column_lambda
-        # end
-      # end
-
-      # def delete_columns(*column_names)
-        # if @columns_loaded
-          # columns.delete_if { |column| column_names.include?(column.name) }
-        # else
-          # delete_lambda = lambda do
-            # delete_columns(*column_names)
-          # end
-          # @column_updates << delete_lambda
-        # end
-      # end
-
-      # def only_columns(*column_names)
-        # clear_columns
-        # column_names.each do |column_name|
-          # column column_name
-        # end
-      # end
 
       protected
 
       class Column
 
         def initialize(name, block = nil)
-          @name = name.to_sym
+          @name = name
           @data = block || @name
         end
 
@@ -170,20 +162,11 @@ module ActiveAdmin
 
         def localized_name(i18n_scope = nil)
           return name.to_s.titleize unless i18n_scope
-          I18n.t name, scope: i18n_scope
+          I18n.t name.to_sym, scope: i18n_scope
         end
       end
 
       private
-
-      #def load_columns
-        # return if @columns_loaded
-        # @columns = resource_columns(@resource_class)
-        # @columns_loaded = true
-        # @column_updates.each(&:call)
-        # @column_updates = []
-        # columns
-      # end
 
       def to_stream
         stream = package.to_stream.read
@@ -197,21 +180,28 @@ module ActiveAdmin
 
       def export_collection(collection)
         header_row(collection) unless @skip_header
+        datetime_cells
+        header_style1 = sheet.styles.add_style( { :format_code => 'yyyy-mm-dd' })
+        header_style2 = sheet.styles.add_style( { :format_code => "yyyy/mm/dd hh:mm:ss" })
         collection.each do |resource|
-          sheet.add_row resource_data(resource)
+          row = sheet.add_row resource_data(resource), { :style => data_style_id, :height => 20, :width => nil }
+          @timestamp.each do |ts|
+            row.cells[ts].type == :time ? row.cells[ts].style = header_style2 : row.cells[ts].style = header_style1
+          end
         end
       end
 
       # tranform column names into array of localized strings
       # @return [Array]
       def header_row(collection)
-        sheet.add_row header_data_for(collection), { :style => header_style_id }
+        sheet.add_row header_data_for(collection), { :style => header_style_id,
+                                                     :height => 20 }
       end
 
       def header_data_for(collection)
-        resource = collection.first # || @resource_class.new
+        resource = collection.first
         columns.map do |column|
-          column.localized_name(i18n_scope) if in_scope(resource, column)
+          column.localized_name(i18n_scope)
         end.compact
       end
 
@@ -226,9 +216,18 @@ module ActiveAdmin
       end
 
       def resource_data(resource)
-        columns.map  do |column|
-          call_method_or_proc_on resource, column.data if in_scope(resource, column)
+        columns.map do |column|
+          call_method_or_proc_on resource, column.data
         end
+      end
+
+      def data_style
+        @data_style ||= { :sz => 10, :font_name => 'Helvetica Neue',
+                          :alignment => { :horizontal => :left, :vertical => :center } }
+      end
+
+      def data_style_id
+        package.workbook.styles.add_style data_style
       end
 
       def in_scope(resource, column)
