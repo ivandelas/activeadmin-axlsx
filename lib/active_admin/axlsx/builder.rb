@@ -143,9 +143,9 @@ module ActiveAdmin
       # @return [Axlsx::Package]
       def serialize(collection)
         @collection = collection
-        apply_filter @before_filter
+        # apply_filter @before_filter
         export_collection(collection)
-        # apply_filter @after_filter
+        apply_filter @after_filter
         to_stream
       end
 
